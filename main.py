@@ -15,15 +15,23 @@ from __future__ import annotations
 import asyncio
 import io
 import os
-import subprocess
-import time
-from pathlib import Path
+import sys
 
 import discord
 from dotenv import load_dotenv
 import mss
 from PIL import Image
 import pyautogui
+
+# ---------------------------------------------------------------------------
+# Windows asyncio fix (required for subprocesses)
+# ---------------------------------------------------------------------------
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+# Disable pyautogui failsafe (mouse in corner aborts). Safer for remote use.
+pyautogui.FAILSAFE = False
 
 # ---------------------------------------------------------------------------
 # Config
@@ -57,7 +65,7 @@ async def run_powershell(command: str, timeout: int = 60) -> tuple[int, str, str
     """Run a PowerShell command and return (returncode, stdout, stderr)."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "powershell",
+            "powershell.exe",
             "-NoProfile",
             "-NonInteractive",
             "-Command",
@@ -72,6 +80,8 @@ async def run_powershell(command: str, timeout: int = 60) -> tuple[int, str, str
             await proc.wait()
             return 1, "", f"Timed out after {timeout}s"
 
+        # PowerShell on older Windows often uses the system ANSI codepage.
+        # errors="replace" keeps it from crashing on weird characters.
         stdout = (stdout_b or b"").decode("utf-8", errors="replace").strip()
         stderr = (stderr_b or b"").decode("utf-8", errors="replace").strip()
         return proc.returncode or 0, stdout, stderr
@@ -82,8 +92,8 @@ async def run_powershell(command: str, timeout: int = 60) -> tuple[int, str, str
 def take_screenshot() -> bytes:
     """Capture the primary monitor and return PNG bytes."""
     with mss.mss() as sct:
-        # monitor 1 = primary
-        mon = sct.monitors[1]
+        # primary_monitor is the correct way (monitors[0] is the virtual desktop)
+        mon = sct.primary_monitor
         shot = sct.grab(mon)
         img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
         buf = io.BytesIO()
@@ -251,7 +261,7 @@ async def on_message(message: discord.Message):
 
     # ---- execute ----
     if action == "ps":
-        await message.reply(f"Running PowerShell…", mention_author=False)
+        await message.reply("Running PowerShell…", mention_author=False)
         code, out, err = await run_powershell(arg)
 
         parts = []

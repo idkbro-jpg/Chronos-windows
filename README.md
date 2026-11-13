@@ -68,9 +68,25 @@ The `.exe` will be in the `dist` folder. Put your `.env` next to it.
 
 ---
 
-## Notes
+## Important notes for VMs / RDP
 
-- Screenshot uses `mss` (very reliable on Windows)
-- Mouse uses `pyautogui`
-- PowerShell is executed with `powershell -NoProfile -Command ...`
-- Keep the bot token and channel ID private
+- **Screenshot and mouse need an interactive desktop session.**  
+  If you RDP into the VM and then disconnect, Windows may stop rendering the desktop → screenshot/mouse can fail or produce black images.
+
+- Keep the RDP window open (or use a tool that keeps the session alive) while testing mouse/screenshot.
+
+- PowerShell commands work fine even without a visible desktop.
+
+---
+
+## Dependencies
+
+All pure-Python / have Windows wheels:
+
+- discord.py
+- python-dotenv
+- mss
+- Pillow
+- pyautogui
+
+No extra system packages needed.
